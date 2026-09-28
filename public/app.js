@@ -165,7 +165,19 @@ function updateUI(timer, printer) {
   const ipDisplay = document.getElementById('printer-ip-display');
   const webBtn = document.getElementById('btn-printer-web');
 
-  if (printer && printer.connected) {
+  // Multi-signal connection detection:
+  // If printer connected flag is true, or if live telemetry is actively arriving, it is connected
+  const isConnected = Boolean(
+    printer && (
+      printer.connected || 
+      printer.isPrinting ||
+      (printer.printStatus && printer.printStatus > 0) ||
+      (printer.temperatures && (printer.temperatures.nozzle > 0 || printer.temperatures.bed > 0)) ||
+      (printer.filename && printer.filename.length > 0)
+    )
+  );
+
+  if (isConnected) {
     badge.className = 'connection-badge connected';
     badgeText.textContent = `Centauri Connected (${printer.host})`;
   } else if (printer && printer.connecting) {

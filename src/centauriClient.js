@@ -36,11 +36,18 @@ class CentauriClient extends EventEmitter {
   }
 
   setHost(host) {
+    if (!host) return;
     if (this.host !== host) {
       this.host = host;
       this.disconnect();
       this.connect();
+    } else if (!this.isConnected && !this.connecting) {
+      this.connect();
     }
+  }
+
+  get isConnected() {
+    return Boolean(this.ws && this.ws.readyState === 1) || this.connected;
   }
 
   log(msg, type = 'info') {
@@ -49,15 +56,17 @@ class CentauriClient extends EventEmitter {
   }
 
   connect() {
-    if (this.connected || this.connecting) return;
+    if (this.isConnected || this.connecting) return;
     this.connecting = true;
     const url = `ws://${this.host}:${this.port}/websocket`;
     this.log(`Connecting to printer at ${url}...`, 'info');
 
     try {
-      this.ws = new WebSocket(url);
+      const socket = new WebSocket(url);
+      this.ws = socket;
 
-      this.ws.onopen = () => {
+      socket.onopen = () => {
+        if (this.ws !== socket) return; // Stale instance check
         this.connecting = false;
         this.connected = true;
         this.log(`Connection established successfully with Centauri Carbon (${this.host})!`, 'success');
@@ -70,11 +79,19 @@ class CentauriClient extends EventEmitter {
         this.requestAttributes();
         this.requestStatus();
 
-        // Start periodic status poll (every 3 seconds as backup to proactive updates)
+        // Start periodic status poll
         this.startStatusPolling();
       };
 
-      this.ws.onmessage = (event) => {
+      socket.onmessage = (event) => {
+        if (this.ws !== socket) return; // Stale instance check
+
+        // Receiving any message proves active connection
+        if (!this.connected) {
+          this.connected = true;
+          this.connecting = false;
+        }
+
         const text = typeof event.data === 'string' ? event.data : event.data.toString();
         if (text === 'pong' || text === 'ping') {
           return;
@@ -88,12 +105,14 @@ class CentauriClient extends EventEmitter {
         }
       };
 
-      this.ws.onerror = (err) => {
-        this.log(`Printer WebSocket error: ${err.message || 'Connection failed'}`, 'error');
+      socket.onerror = (err) => {
+        if (this.ws !== socket) return; // Stale instance check
+        this.log(`Printer WebSocket notice: ${err?.message || 'Connection attempt failed'}`, 'warning');
         this.emit('error', err);
       };
 
-      this.ws.onclose = () => {
+      socket.onclose = () => {
+        if (this.ws !== socket) return; // Stale instance check
         const wasConnected = this.connected;
         this.connected = false;
         this.connecting = false;
@@ -122,10 +141,15 @@ class CentauriClient extends EventEmitter {
     this.stopHeartbeat();
     this.stopStatusPolling();
     if (this.ws) {
-      try {
-        this.ws.close();
-      } catch (e) {}
+      const oldWs = this.ws;
       this.ws = null;
+      try {
+        oldWs.onopen = null;
+        oldWs.onmessage = null;
+        oldWs.onerror = null;
+        oldWs.onclose = null;
+        oldWs.close();
+      } catch (e) {}
     }
     this.connected = false;
     this.connecting = false;
@@ -142,7 +166,7 @@ class CentauriClient extends EventEmitter {
   startHeartbeat() {
     this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
-      if (this.connected && this.ws && this.ws.readyState === 1) {
+      if (this.ws && this.ws.readyState === 1) {
         try {
           this.ws.send('ping');
         } catch (e) {}
@@ -160,7 +184,7 @@ class CentauriClient extends EventEmitter {
   startStatusPolling() {
     this.stopStatusPolling();
     this.pollTimer = setInterval(() => {
-      if (this.connected && this.ws && this.ws.readyState === 1) {
+      if (this.ws && this.ws.readyState === 1) {
         this.requestStatus();
       }
     }, 3000);
@@ -193,7 +217,7 @@ class CentauriClient extends EventEmitter {
   }
 
   send(cmd, data = {}) {
-    if (!this.connected || !this.ws || this.ws.readyState !== 1) {
+    if (!this.ws || this.ws.readyState !== 1) {
       this.log(`Cannot send command ${cmd}: Printer not connected`, 'warning');
       return false;
     }
@@ -236,6 +260,9 @@ class CentauriClient extends EventEmitter {
   }
 
   handleMessage(msg) {
+    // Receiving messages confirms active connection
+    this.connected = true;
+
     // 1. Topic: sdcp/attributes/...
     if (msg.Attributes) {
       this.attributes = msg.Attributes;
@@ -290,6 +317,8 @@ class CentauriClient extends EventEmitter {
   }
 
   getSnapshot() {
+    const isConn = Boolean((this.ws && this.ws.readyState === 1) || this.connected);
+
     // Human readable print status text
     const printStatusNames = {
       0: 'Idle / Ready',
@@ -312,8 +341,8 @@ class CentauriClient extends EventEmitter {
     const isPaused = printStatus === 6;
 
     return {
-      connected: this.connected,
-      connecting: this.connecting,
+      connected: isConn,
+      connecting: this.connecting && !isConn,
       host: this.host,
       mainboardID: this.mainboardID,
       machineName: this.attributes?.MachineName || 'Centauri Carbon',

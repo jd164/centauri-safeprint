@@ -29,9 +29,21 @@ if (fs.existsSync(envPath)) {
   }
 }
 
+// Read last known printer IP from local cache if available
+const configPath = path.join(__dirname, '..', '.printer_config.json');
+let savedIp = null;
+if (fs.existsSync(configPath)) {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (cfg && cfg.lastPrinterIp) {
+      savedIp = cfg.lastPrinterIp;
+    }
+  } catch (e) {}
+}
+
 let PORT = parseInt(process.env.PORT, 10) || 3000;
 let explicitIpProvided = false;
-let PRINTER_IP = '192.168.1.100';
+let PRINTER_IP = savedIp || '192.168.1.100';
 
 if (process.env.PRINTER_IP) {
   PRINTER_IP = process.env.PRINTER_IP;
@@ -50,6 +62,13 @@ for (let i = 2; i < process.argv.length; i++) {
     PRINTER_IP = arg;
     explicitIpProvided = true;
   }
+}
+
+function saveLastPrinterIp(ip) {
+  if (!ip || ip === '192.168.1.100') return;
+  try {
+    fs.writeFileSync(configPath, JSON.stringify({ lastPrinterIp: ip }, null, 2));
+  } catch (e) {}
 }
 
 // Initialize printer client and timer manager
@@ -108,6 +127,7 @@ printer.on('status', () => {
 });
 
 printer.on('connected', () => {
+  saveLastPrinterIp(printer.host);
   broadcastEvent('update', {
     timer: timer.getStatus(),
     printer: printer.getSnapshot()
@@ -305,6 +325,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const data = await parseJsonBody(req);
       if (data.host) {
+        saveLastPrinterIp(data.host);
         printer.setHost(data.host);
       } else {
         printer.disconnect();
@@ -326,8 +347,11 @@ const server = http.createServer(async (req, res) => {
         autoConnect = Boolean(body.autoConnect);
       }
       const printers = await discoverPrinters({ timeoutMs: 2000 });
-      if (autoConnect && printers.length > 0) {
-        printer.setHost(printers[0].ip);
+      if (printers.length > 0) {
+        saveLastPrinterIp(printers[0].ip);
+        if (autoConnect || !printer.isConnected) {
+          printer.setHost(printers[0].ip);
+        }
       }
       sendJson(res, 200, {
         success: true,
@@ -371,17 +395,18 @@ server.listen(PORT, () => {
   console.log(` Official Printer Web UI: http://${printer.host}/network-device-manager/network/control`);
   console.log(`=======================================================`);
 
-  // Automatic Background Discovery
-  // If no explicit IP was passed, or if initial connection is pending, search local network
+  // Background Auto-Discovery
+  // If not already connected or explicit IP not specified, search local network
   setTimeout(async () => {
-    if (!printer.connected) {
+    if (!printer.isConnected) {
       console.log(`[Auto-Discovery] Scanning local network for Elegoo Centauri Carbon...`);
       try {
         const found = await discoverPrinters({ timeoutMs: 2500 });
         if (found.length > 0) {
           const target = found[0];
           console.log(`[Auto-Discovery] Found ${target.brand} ${target.name} at ${target.ip} (FW: ${target.firmwareVersion})!`);
-          if (!explicitIpProvided || !printer.connected) {
+          saveLastPrinterIp(target.ip);
+          if (!explicitIpProvided || !printer.isConnected) {
             console.log(`[Auto-Discovery] Automatically connecting to ${target.ip}...`);
             printer.setHost(target.ip);
           }

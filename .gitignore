@@ -24,3 +24,6 @@ yarn-debug.log*
 
 # Local research and reverse-engineering scratchpads
 temp_research/
+
+# Local cache for remembered printer IP
+.printer_config.json

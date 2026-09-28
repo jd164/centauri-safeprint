@@ -120,15 +120,15 @@ function setupSSE() {
 
   eventSource.addEventListener('warning', (e) => {
     playWarningAlarm();
-    showNotification('Centauri SafePrint: 1 Minuto Restante', 'O temporizador da impressora irá atuar dentro de 60 segundos!');
+    showNotification('Centauri SafePrint: 1 Minute Remaining', 'The printer countdown will trigger action in 60 seconds!');
   });
 
   eventSource.addEventListener('triggered', (e) => {
     playTriggerAlarm();
     try {
       const data = JSON.parse(e.data);
-      const actionName = data.action === 'stop' ? 'PARADA' : 'PAUSADA';
-      showNotification('Centauri SafePrint: Ação Executada!', `A impressão foi ${actionName} com sucesso.`);
+      const actionName = data.action === 'stop' ? 'STOPPED' : 'PAUSED';
+      showNotification('Centauri SafePrint: Action Executed!', `The print was ${actionName} successfully.`);
     } catch (err) {}
   });
 
@@ -167,13 +167,13 @@ function updateUI(timer, printer) {
 
   if (printer && printer.connected) {
     badge.className = 'connection-badge connected';
-    badgeText.textContent = `Centauri Ligada (${printer.host})`;
+    badgeText.textContent = `Centauri Connected (${printer.host})`;
   } else if (printer && printer.connecting) {
     badge.className = 'connection-badge';
-    badgeText.textContent = 'A conectar à impressora...';
+    badgeText.textContent = 'Connecting to printer...';
   } else {
     badge.className = 'connection-badge disconnected';
-    badgeText.textContent = 'Desconectada';
+    badgeText.textContent = 'Disconnected';
   }
 
   if (printer && printer.host) {
@@ -203,7 +203,7 @@ function updateTimerCard(timer) {
   if (!timer || !timer.active) {
     // Inactive timer
     badge.className = 'status-pill idle';
-    badge.textContent = 'INATIVO';
+    badge.textContent = 'IDLE';
     clock.className = 'timer-clock';
     
     // Set clock to input values or 00:00:00
@@ -214,10 +214,10 @@ function updateTimerCard(timer) {
     clock.textContent = formatSecondsToClock(totalSecs);
     
     progressBar.style.width = '0%';
-    subtext.textContent = 'Defina o tempo para proteger a sua impressão';
+    subtext.textContent = 'Set a countdown duration to guard your 3D print';
 
     btnStart.classList.remove('hidden');
-    btnStart.textContent = '▶ INICIAR TEMPORIZADOR';
+    btnStart.textContent = '▶ START SAFE TIMER';
     btnPause.classList.add('hidden');
     btnCancel.classList.add('hidden');
     adjustContainer.classList.add('hidden');
@@ -226,8 +226,8 @@ function updateTimerCard(timer) {
 
     if (timer && timer.triggered) {
       badge.className = 'status-pill warning';
-      badge.textContent = 'ACIONADO';
-      subtext.textContent = `Ação executada: ${timer.triggerReason || 'Tempo esgotado'}!`;
+      badge.textContent = 'TRIGGERED';
+      subtext.textContent = `Action executed: ${timer.triggerReason || 'Time elapsed'}!`;
     }
   } else {
     // Active running timer
@@ -241,26 +241,26 @@ function updateTimerCard(timer) {
     btnPause.classList.remove('hidden');
     btnCancel.classList.remove('hidden');
 
-    const actionText = timer.action === 'stop' ? 'Parar Impressão' : 'Pausar Impressão';
+    const actionText = timer.action === 'stop' ? 'Stop Print' : 'Pause Print';
 
     if (timer.paused) {
       badge.className = 'status-pill paused';
-      badge.textContent = 'PAUSADO';
+      badge.textContent = 'PAUSED';
       clock.className = 'timer-clock';
-      subtext.textContent = `Temporizador em pausa. Ação agendada: ${actionText}`;
-      btnPause.textContent = '▶ Retomar Timer';
+      subtext.textContent = `Timer paused. Scheduled action: ${actionText}`;
+      btnPause.textContent = '▶ Resume Timer';
     } else {
       badge.className = 'status-pill active';
-      badge.textContent = 'A CONTAR';
-      btnPause.textContent = '⏸ Pausar Timer';
+      badge.textContent = 'COUNTING';
+      btnPause.textContent = '⏸ Pause Timer';
 
       if (timer.remainingSeconds <= 60) {
         clock.className = 'timer-clock pulse-warning';
-        subtext.textContent = `⚠️ ATENÇÃO: Falta menos de 1 minuto para ${actionText}!`;
+        subtext.textContent = `⚠️ ATTENTION: Less than 1 minute remaining until ${actionText}!`;
       } else {
         clock.className = 'timer-clock pulse-active';
-        const endFormatted = timer.endTime ? new Date(timer.endTime).toLocaleTimeString('pt-PT') : '';
-        subtext.textContent = `Ação agendada: ${actionText} às ${endFormatted}`;
+        const endFormatted = timer.endTime ? new Date(timer.endTime).toLocaleTimeString('en-US', { hour12: false }) : '';
+        subtext.textContent = `Scheduled action: ${actionText} at ${endFormatted}`;
       }
     }
   }
@@ -281,7 +281,7 @@ function updatePrinterTelemetry(printer) {
   }
 
   // Job Info
-  document.getElementById('telemetry-filename').textContent = printer.filename || '(Nenhum ficheiro ativo)';
+  document.getElementById('telemetry-filename').textContent = printer.filename || '(No active print job)';
   document.getElementById('telemetry-progress-val').textContent = `${printer.progress}%`;
   document.getElementById('telemetry-progress-bar').style.width = `${printer.progress}%`;
   document.getElementById('telemetry-layer').textContent = `${printer.currentLayer} / ${printer.totalLayer}`;
@@ -393,7 +393,7 @@ function setupActionButtons() {
     const totalSeconds = (h * 3600) + (m * 60) + s;
 
     if (totalSeconds <= 0) {
-      alert('Por favor defina uma duração superior a 0 segundos.');
+      alert('Please set a duration greater than 0 seconds.');
       return;
     }
 
@@ -416,7 +416,7 @@ function setupActionButtons() {
         updateTimerCard(data.timer);
       }
     } catch (err) {
-      alert('Erro ao iniciar temporizador: ' + err.message);
+      alert('Error starting timer: ' + err.message);
     }
   });
 
@@ -496,7 +496,7 @@ function setupActionButtons() {
     cameraActive = true;
     camPlaceholder.classList.add('hidden');
     camImg.classList.remove('hidden');
-    btnToggleCam.textContent = 'Desativar';
+    btnToggleCam.textContent = 'Disable';
 
     try {
       await fetch('/api/printer/camera', {
@@ -514,7 +514,7 @@ function setupActionButtons() {
     cameraActive = false;
     camImg.classList.add('hidden');
     camPlaceholder.classList.remove('hidden');
-    btnToggleCam.textContent = 'Ativar Câmara';
+    btnToggleCam.textContent = 'Enable Camera';
     camImg.src = '';
   }
 
@@ -536,12 +536,19 @@ function setupActionButtons() {
     document.getElementById('logs-list').innerHTML = '';
   });
 
-  // IP Modal
+  // IP Modal & Discovery
   const ipModal = document.getElementById('modal-ip');
+  const discoveryStatus = document.getElementById('discovery-status');
+  const discoveryList = document.getElementById('discovery-list');
+  const btnDiscover = document.getElementById('btn-discover-printers');
+
   document.getElementById('btn-edit-ip').addEventListener('click', () => {
     if (currentPrinterState && currentPrinterState.host) {
       document.getElementById('input-printer-ip').value = currentPrinterState.host;
     }
+    discoveryStatus.classList.add('hidden');
+    discoveryList.classList.add('hidden');
+    discoveryList.innerHTML = '';
     ipModal.classList.remove('hidden');
   });
 
@@ -565,6 +572,58 @@ function setupActionButtons() {
         body: JSON.stringify({ host: newIp })
       });
     } catch (e) {}
+  });
+
+  // Auto-Discover Network Printers
+  btnDiscover.addEventListener('click', async () => {
+    btnDiscover.disabled = true;
+    btnDiscover.textContent = '⏳ Scanning...';
+    discoveryStatus.className = 'discovery-status scanning';
+    discoveryStatus.textContent = 'Scanning local network for Elegoo Centauri Carbon...';
+    discoveryStatus.classList.remove('hidden');
+    discoveryList.classList.add('hidden');
+    discoveryList.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/printer/discover', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.success && data.printers && data.printers.length > 0) {
+        discoveryStatus.className = 'discovery-status success';
+        discoveryStatus.textContent = `Found ${data.printers.length} printer(s) on your network:`;
+        discoveryList.classList.remove('hidden');
+
+        // Auto-select first discovered printer
+        document.getElementById('input-printer-ip').value = data.printers[0].ip;
+
+        data.printers.forEach(printer => {
+          const item = document.createElement('div');
+          item.className = 'discovery-item';
+          item.innerHTML = `
+            <div>
+              <span class="discovery-item-name">${printer.brand || 'ELEGOO'} ${printer.name}</span>
+              <span class="discovery-item-ip">${printer.ip}</span>
+            </div>
+            <span class="discovery-item-badge">Use This IP</span>
+          `;
+          item.addEventListener('click', () => {
+            document.getElementById('input-printer-ip').value = printer.ip;
+            // Visual feedback
+            item.style.borderColor = 'var(--accent-green)';
+          });
+          discoveryList.appendChild(item);
+        });
+      } else {
+        discoveryStatus.className = 'discovery-status empty';
+        discoveryStatus.textContent = 'No printers responded to UDP discovery. Check that your printer is powered on and connected to Wi-Fi.';
+      }
+    } catch (err) {
+      discoveryStatus.className = 'discovery-status empty';
+      discoveryStatus.textContent = `Scan notice: ${err.message}`;
+    } finally {
+      btnDiscover.disabled = false;
+      btnDiscover.textContent = '🔍 Auto-Detect';
+    }
   });
 }
 

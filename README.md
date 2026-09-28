@@ -73,8 +73,13 @@ When your programmed timer runs out—or when your target layer or progress thre
   - Distinct trigger alarm when pause/stop action is executed.
   - Native OS desktop notifications for background awareness.
 
+- **🔍 Automatic Network Discovery (Zero Configuration)**:
+  - Automatically discovers Elegoo Centauri Carbon printers on your local Wi-Fi / LAN via native SDCP UDP broadcast (`M99999`) and subnet probing.
+  - Automatically identifies and connects to your printer on startup without needing to know or type its IP address!
+  - Includes an on-demand **🔍 Auto-Detect** scanner in the IP settings modal.
+
 - **⚡ Zero External Dependencies**:
-  - Built with pure Node.js standard library modules (`http`, `events`, `crypto`, `fs`, `path`) and native WebSockets (`WebSocket`).
+  - Built with pure Node.js standard library modules (`http`, `dgram`, `events`, `crypto`, `fs`, `path`, `os`) and native WebSockets (`WebSocket`).
   - No `node_modules` installation required! Download and run immediately.
 
 - **📱 Fully Responsive Dark-Mode Dashboard**:
@@ -168,23 +173,24 @@ Find your printer's local IP address on the Centauri Carbon touchscreen under:
 
 You have three convenient ways to set it:
 
-### 1. In the Web Interface (Easiest)
+## ⚙️ Configuring Printer IP
+
+You have three convenient ways to connect:
+
+### 1. Automatic Discovery (Zero Configuration - Recommended)
+SafePrint scans your local subnet on startup via UDP broadcast (`M99999`) and automatically connects to your Centauri Carbon if found! You can also click the gear icon (`⚙️`) in the navbar anytime and click **🔍 Auto-Detect** to scan and connect in seconds.
+
+### 2. In the Web Interface
 1. Open the dashboard at `http://localhost:3000`.
 2. Click the gear icon in the top right navbar (`⚙️ IP`).
-3. Enter your printer's IP and click **Guardar & Reconectar** (*Save & Reconnect*).
+3. Enter your printer's IP and click **Save & Connect**.
 
-### 2. Via `.env` File
+### 3. Via `.env` File or CLI
 Copy the example file and edit `PRINTER_IP`:
 ```bash
 cp .env.example .env
 ```
-Contents of `.env`:
-```env
-PRINTER_IP=192.168.1.120
-PORT=3000
-```
-
-### 3. Via CLI Parameter
+Or pass the IP directly on command line:
 ```bash
 node src/server.js 192.168.1.120
 ```
@@ -194,18 +200,18 @@ node src/server.js 192.168.1.120
 ## 🎮 How to Use the SafePrint Dashboard
 
 1. **Check Connection**:
-   - The top banner will display **Centauri Ligada (Connected)** with a green pulse once connected to the printer via WebSocket.
+   - The top banner displays **Centauri Connected** with a pulsing green indicator once connected via WebSocket.
 2. **Choose Action**:
-   - ⏸️ **Pausar Impressão (Recommended)**: Suspends printing safely, parks the nozzle, keeps temperatures on, and awaits a new spool.
-   - ⏹️ **Parar / Cancelar**: Completely stops the job.
+   - ⏸️ **Pause Print (Recommended)**: Suspends printing safely, parks the nozzle, keeps bed and nozzle heated, and awaits a new spool.
+   - ⏹️ **Stop / Abort**: Completely stops and terminates the job.
 3. **Set Your Target**:
-   - **By Time**: Choose a quick preset (e.g. `45 min`) or enter a custom duration in hours and minutes, then click **Iniciar Temporizador**.
-   - **By Layer**: Switch to the **Camada (Layer)** tab and enter the target layer number (e.g. `120`).
-   - **By Percentage**: Switch to the **Percentagem (%)** tab and choose target percent.
-4. **Monitor**:
-   - Watch the countdown circle, telemetry bars, and live logs. Use the `+1m`, `+5m`, `+10m` buttons anytime to extend the timer if your spool has extra filament.
+   - **By Time**: Choose a quick preset (e.g. `45 min`) or enter custom hours/minutes, then click **▶ START SAFE TIMER**.
+   - **By Layer**: Enter a target layer (e.g. `150`) under the Smart Triggers card.
+   - **By Percentage**: Enter a target percentage (e.g. `85%`).
+4. **Monitor & Adjust**:
+   - Watch the live countdown, telemetry, temperatures, and activity log. Use the `+1m`, `+5m`, `+10m` adjustment buttons anytime while running.
 5. **Resume**:
-   - Once paused and your new spool is loaded, click **Retomar Agora** on the dashboard or directly on the printer screen.
+   - Once paused and your new spool is loaded, click **Resume Now** on the dashboard or directly on the printer touchscreen.
 
 ---
 

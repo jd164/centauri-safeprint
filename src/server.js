@@ -5,6 +5,7 @@ const url = require('url');
 
 const CentauriClient = require('./centauriClient');
 const TimerManager = require('./timerManager');
+const { discoverPrinters } = require('./printerDiscovery');
 
 // Parse optional .env file if present
 const envPath = path.join(__dirname, '..', '.env');
@@ -29,17 +30,25 @@ if (fs.existsSync(envPath)) {
 }
 
 let PORT = parseInt(process.env.PORT, 10) || 3000;
-let PRINTER_IP = process.env.PRINTER_IP || '192.168.1.100';
+let explicitIpProvided = false;
+let PRINTER_IP = '192.168.1.100';
+
+if (process.env.PRINTER_IP) {
+  PRINTER_IP = process.env.PRINTER_IP;
+  explicitIpProvided = true;
+}
 
 // Support command-line arguments: --ip <ip>, -i <ip>, --port <port>, -p <port> or positional IP
 for (let i = 2; i < process.argv.length; i++) {
   const arg = process.argv[i];
   if ((arg === '--ip' || arg === '-i') && process.argv[i + 1]) {
     PRINTER_IP = process.argv[++i];
+    explicitIpProvided = true;
   } else if ((arg === '--port' || arg === '-p') && process.argv[i + 1]) {
     PORT = parseInt(process.argv[++i], 10);
   } else if (!arg.startsWith('-') && !process.argv[i - 1]?.startsWith('-')) {
     PRINTER_IP = arg;
+    explicitIpProvided = true;
   }
 }
 
@@ -258,7 +267,7 @@ const server = http.createServer(async (req, res) => {
   // 8. Printer Pause Print (Cmd 129)
   if (req.method === 'POST' && pathname === '/api/printer/pause') {
     const success = printer.pausePrint();
-    timer.addLog('Comando manual acionado: PAUSAR IMPRESSÃO', 'warning');
+    timer.addLog('Manual command triggered: PAUSE PRINT', 'warning');
     sendJson(res, 200, { success });
     return;
   }
@@ -266,7 +275,7 @@ const server = http.createServer(async (req, res) => {
   // 9. Printer Resume Print (Cmd 131)
   if (req.method === 'POST' && pathname === '/api/printer/resume') {
     const success = printer.resumePrint();
-    timer.addLog('Comando manual acionado: RETOMAR IMPRESSÃO', 'info');
+    timer.addLog('Manual command triggered: RESUME PRINT', 'info');
     sendJson(res, 200, { success });
     return;
   }
@@ -274,7 +283,7 @@ const server = http.createServer(async (req, res) => {
   // 10. Printer Stop Print (Cmd 130)
   if (req.method === 'POST' && pathname === '/api/printer/stop') {
     const success = printer.stopPrint();
-    timer.addLog('Comando manual acionado: PARAR IMPRESSÃO', 'error');
+    timer.addLog('Manual command triggered: STOP PRINT', 'error');
     sendJson(res, 200, { success });
     return;
   }
@@ -308,6 +317,30 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 13. Auto-Discovery of Printers
+  if ((req.method === 'GET' || req.method === 'POST') && pathname === '/api/printer/discover') {
+    try {
+      let autoConnect = false;
+      if (req.method === 'POST') {
+        const body = await parseJsonBody(req).catch(() => ({}));
+        autoConnect = Boolean(body.autoConnect);
+      }
+      const printers = await discoverPrinters({ timeoutMs: 2000 });
+      if (autoConnect && printers.length > 0) {
+        printer.setHost(printers[0].ip);
+      }
+      sendJson(res, 200, {
+        success: true,
+        count: printers.length,
+        printers,
+        connectedHost: printer.host
+      });
+    } catch (err) {
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return;
+  }
+
   // --- Static Files Serving from 'public/' ---
   let reqPath = pathname === '/' ? '/index.html' : pathname;
   // Security check against directory traversal
@@ -332,11 +365,34 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`=======================================================`);
-  console.log(` Centauri Carbon SafePrint (Proteção Anti-Runout)`);
-  console.log(` Servidor ativo em: http://localhost:${PORT}`);
-  console.log(` Impressora configurada em: ${printer.host}:${printer.port}`);
-  console.log(` Link original da impressora: http://${printer.host}/network-device-manager/network/control`);
+  console.log(` Centauri Carbon SafePrint (Anti-Runout Guard)`);
+  console.log(` Web Dashboard: http://localhost:${PORT}`);
+  console.log(` Initial Printer IP: ${printer.host}:${printer.port}`);
+  console.log(` Official Printer Web UI: http://${printer.host}/network-device-manager/network/control`);
   console.log(`=======================================================`);
+
+  // Automatic Background Discovery
+  // If no explicit IP was passed, or if initial connection is pending, search local network
+  setTimeout(async () => {
+    if (!printer.connected) {
+      console.log(`[Auto-Discovery] Scanning local network for Elegoo Centauri Carbon...`);
+      try {
+        const found = await discoverPrinters({ timeoutMs: 2500 });
+        if (found.length > 0) {
+          const target = found[0];
+          console.log(`[Auto-Discovery] Found ${target.brand} ${target.name} at ${target.ip} (FW: ${target.firmwareVersion})!`);
+          if (!explicitIpProvided || !printer.connected) {
+            console.log(`[Auto-Discovery] Automatically connecting to ${target.ip}...`);
+            printer.setHost(target.ip);
+          }
+        } else {
+          console.log(`[Auto-Discovery] No printers responded to UDP discovery. Using current configured IP: ${printer.host}`);
+        }
+      } catch (e) {
+        console.warn(`[Auto-Discovery] Scan notice:`, e.message);
+      }
+    }
+  }, 1000);
 });
 
 // Periodic ping to keep SSE alive

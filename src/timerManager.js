@@ -24,7 +24,7 @@ class TimerManager extends EventEmitter {
     this.logs = [];
 
     // Pre-populate with initial log
-    this.addLog('Sistema de proteção anti-runout inicializado.', 'info');
+    this.addLog('SafePrint anti-runout protection system initialized.', 'info');
 
     // Listen to printer status to check target layer/progress
     this.client.on('status', () => {
@@ -39,7 +39,7 @@ class TimerManager extends EventEmitter {
   addLog(message, type = 'info') {
     const entry = {
       id: Date.now() + Math.random().toString(36).substr(2, 4),
-      time: new Date().toLocaleTimeString('pt-PT'),
+      time: new Date().toLocaleTimeString('en-US', { hour12: false }),
       message,
       type
     };
@@ -66,12 +66,12 @@ class TimerManager extends EventEmitter {
     this.triggered = false;
     this.triggerReason = null;
 
-    const actionText = this.action === 'stop' ? 'PARAR IMPRESSÃO' : 'PAUSAR IMPRESSÃO';
+    const actionText = this.action === 'stop' ? 'STOP PRINT' : 'PAUSE PRINT';
     const timeFormatted = this.formatTime(parsedSeconds);
 
-    let desc = `Temporizador INICIADO: ${timeFormatted} para ${actionText}.`;
-    if (this.targetLayer) desc += ` (Ou ao atingir camada ${this.targetLayer})`;
-    if (this.targetProgress) desc += ` (Ou ao atingir ${this.targetProgress}%)`;
+    let desc = `Safe timer STARTED: ${timeFormatted} for ${actionText}.`;
+    if (this.targetLayer) desc += ` (Or upon reaching layer ${this.targetLayer})`;
+    if (this.targetProgress) desc += ` (Or upon reaching ${this.targetProgress}%)`;
 
     this.addLog(desc, 'success');
     this.emit('state_change', this.getStatus());
@@ -86,13 +86,13 @@ class TimerManager extends EventEmitter {
 
     if (this.remainingSeconds <= 0) {
       this.remainingSeconds = 0;
-      this.executeTrigger('Tempo esgotado');
+      this.executeTrigger('Time elapsed');
       return;
     }
 
     // 1-minute warning notification
     if (this.remainingSeconds === 60) {
-      this.addLog('AVISO: Falta apenas 1 minuto para o acionamento do temporizador!', 'warning');
+      this.addLog('WARNING: 1 minute remaining before timer trigger!', 'warning');
       this.emit('warning', { secondsLeft: 60 });
     }
 
@@ -106,13 +106,13 @@ class TimerManager extends EventEmitter {
 
     // Check target layer
     if (this.targetLayer && snap.currentLayer >= this.targetLayer) {
-      this.executeTrigger(`Camada alvo (${this.targetLayer}) atingida`);
+      this.executeTrigger(`Target layer (${this.targetLayer}) reached`);
       return;
     }
 
     // Check target progress percentage
     if (this.targetProgress && snap.progress >= this.targetProgress) {
-      this.executeTrigger(`Progresso alvo (${this.targetProgress}%) atingido`);
+      this.executeTrigger(`Target progress (${this.targetProgress}%) reached`);
       return;
     }
   }
@@ -122,8 +122,8 @@ class TimerManager extends EventEmitter {
     this.triggered = true;
     this.triggerReason = reason;
 
-    const actionName = this.action === 'stop' ? 'PARAR' : 'PAUSAR';
-    this.addLog(`TEMPORIZADOR ACIONADO (${reason})! Executando comando: ${actionName}...`, 'warning');
+    const actionName = this.action === 'stop' ? 'STOP' : 'PAUSE';
+    this.addLog(`TIMER TRIGGERED (${reason})! Executing command: ${actionName}...`, 'warning');
 
     if (this.action === 'stop') {
       this.client.stopPrint();
@@ -134,7 +134,7 @@ class TimerManager extends EventEmitter {
     this.emit('triggered', {
       action: this.action,
       reason,
-      time: new Date().toLocaleTimeString('pt-PT')
+      time: new Date().toLocaleTimeString('en-US', { hour12: false })
     });
 
     this.stopInterval();
@@ -145,7 +145,7 @@ class TimerManager extends EventEmitter {
   pause() {
     if (!this.active || this.paused) return false;
     this.paused = true;
-    this.addLog('Temporizador em PAUSA.', 'info');
+    this.addLog('Safe timer PAUSED.', 'info');
     this.emit('state_change', this.getStatus());
     return true;
   }
@@ -154,7 +154,7 @@ class TimerManager extends EventEmitter {
     if (!this.active || !this.paused) return false;
     this.paused = false;
     this.endTime = Date.now() + (this.remainingSeconds * 1000);
-    this.addLog('Temporizador RETOMADO.', 'info');
+    this.addLog('Safe timer RESUMED.', 'info');
     this.emit('state_change', this.getStatus());
     return true;
   }
@@ -170,7 +170,7 @@ class TimerManager extends EventEmitter {
     this.triggerReason = null;
 
     if (wasActive) {
-      this.addLog('Temporizador CANCELADO manualmente.', 'warning');
+      this.addLog('Safe timer CANCELLED manually.', 'warning');
     }
     this.emit('state_change', this.getStatus());
     return true;
@@ -187,7 +187,7 @@ class TimerManager extends EventEmitter {
 
     const sign = delta > 0 ? '+' : '';
     const minutes = Math.round(delta / 60);
-    this.addLog(`Tempo ajustado em ${sign}${minutes} min. Restam: ${this.formatTime(this.remainingSeconds)}`, 'info');
+    this.addLog(`Time adjusted by ${sign}${minutes} min. Remaining: ${this.formatTime(this.remainingSeconds)}`, 'info');
     this.emit('state_change', this.getStatus());
     return true;
   }

@@ -44,7 +44,7 @@ class CentauriClient extends EventEmitter {
   }
 
   log(msg, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
     this.emit('log', { timestamp, message: msg, type });
   }
 
@@ -52,7 +52,7 @@ class CentauriClient extends EventEmitter {
     if (this.connected || this.connecting) return;
     this.connecting = true;
     const url = `ws://${this.host}:${this.port}/websocket`;
-    this.log(`Conectando à impressora em ${url}...`, 'info');
+    this.log(`Connecting to printer at ${url}...`, 'info');
 
     try {
       this.ws = new WebSocket(url);
@@ -60,7 +60,7 @@ class CentauriClient extends EventEmitter {
       this.ws.onopen = () => {
         this.connecting = false;
         this.connected = true;
-        this.log(`Ligação estabelecida com sucesso com Centauri Carbon (${this.host})!`, 'success');
+        this.log(`Connection established successfully with Centauri Carbon (${this.host})!`, 'success');
         this.emit('connected', { host: this.host });
 
         // Start heartbeat ping
@@ -89,7 +89,7 @@ class CentauriClient extends EventEmitter {
       };
 
       this.ws.onerror = (err) => {
-        this.log(`Erro no WebSocket da impressora: ${err.message || 'Falha de ligação'}`, 'error');
+        this.log(`Printer WebSocket error: ${err.message || 'Connection failed'}`, 'error');
         this.emit('error', err);
       };
 
@@ -101,7 +101,7 @@ class CentauriClient extends EventEmitter {
         this.stopStatusPolling();
 
         if (wasConnected) {
-          this.log(`Ligação com a impressora perdida. Tentando reconectar em 5 segundos...`, 'warning');
+          this.log(`Connection to printer lost. Attempting to reconnect in 5 seconds...`, 'warning');
         }
         this.emit('disconnected');
         this.scheduleReconnect();
@@ -109,7 +109,7 @@ class CentauriClient extends EventEmitter {
     } catch (err) {
       this.connecting = false;
       this.connected = false;
-      this.log(`Erro ao instanciar ligação WebSocket: ${err.message}`, 'error');
+      this.log(`Error initializing WebSocket connection: ${err.message}`, 'error');
       this.scheduleReconnect();
     }
   }
@@ -194,7 +194,7 @@ class CentauriClient extends EventEmitter {
 
   send(cmd, data = {}) {
     if (!this.connected || !this.ws || this.ws.readyState !== 1) {
-      this.log(`Não é possível enviar comando ${cmd}: Impressora não conectada`, 'warning');
+      this.log(`Cannot send command ${cmd}: Printer not connected`, 'warning');
       return false;
     }
     try {
@@ -202,7 +202,7 @@ class CentauriClient extends EventEmitter {
       this.ws.send(packetStr);
       return true;
     } catch (err) {
-      this.log(`Erro ao enviar comando ${cmd}: ${err.message}`, 'error');
+      this.log(`Error sending command ${cmd}: ${err.message}`, 'error');
       return false;
     }
   }
@@ -216,22 +216,22 @@ class CentauriClient extends EventEmitter {
   }
 
   pausePrint() {
-    this.log('Comando enviado: PAUSAR IMPRESSÃO (Cmd 129)', 'warning');
+    this.log('Command sent: PAUSE PRINT (Cmd 129)', 'warning');
     return this.send(this.CMD.SUSPEND_PRINT);
   }
 
   resumePrint() {
-    this.log('Comando enviado: RETOMAR IMPRESSÃO (Cmd 131)', 'info');
+    this.log('Command sent: RESUME PRINT (Cmd 131)', 'info');
     return this.send(this.CMD.RESTORE_PRINT);
   }
 
   stopPrint() {
-    this.log('Comando enviado: PARAR / CANCELAR IMPRESSÃO (Cmd 130)', 'error');
+    this.log('Command sent: STOP / CANCEL PRINT (Cmd 130)', 'error');
     return this.send(this.CMD.STOP_PRINT);
   }
 
   requestCameraStream(enable = true) {
-    this.log(`Comando enviado: ${enable ? 'Ativar' : 'Desativar'} Câmara (Cmd 386)`, 'info');
+    this.log(`Command sent: ${enable ? 'Enable' : 'Disable'} Camera (Cmd 386)`, 'info');
     return this.send(this.CMD.VIDEO_STREAM, { Enable: enable ? 1 : 0 });
   }
 
@@ -259,21 +259,21 @@ class CentauriClient extends EventEmitter {
 
       if (cmd === this.CMD.SUSPEND_PRINT) {
         if (ack === 0) {
-          this.log('Impressora confirmou: PAUSA ATIVADA com sucesso.', 'success');
+          this.log('Printer confirmed: PRINT PAUSED successfully.', 'success');
         } else {
-          this.log(`Impressora retornou erro ao pausar (Ack: ${ack})`, 'error');
+          this.log(`Printer returned error when pausing (Ack: ${ack})`, 'error');
         }
       } else if (cmd === this.CMD.STOP_PRINT) {
         if (ack === 0) {
-          this.log('Impressora confirmou: IMPRESSÃO PARADA com sucesso.', 'success');
+          this.log('Printer confirmed: PRINT STOPPED successfully.', 'success');
         } else {
-          this.log(`Impressora retornou erro ao parar (Ack: ${ack})`, 'error');
+          this.log(`Printer returned error when stopping (Ack: ${ack})`, 'error');
         }
       } else if (cmd === this.CMD.RESTORE_PRINT) {
         if (ack === 0) {
-          this.log('Impressora confirmou: IMPRESSÃO RETOMADA com sucesso.', 'success');
+          this.log('Printer confirmed: PRINT RESUMED successfully.', 'success');
         } else {
-          this.log(`Impressora retornou erro ao retomar (Ack: ${ack})`, 'error');
+          this.log(`Printer returned error when resuming (Ack: ${ack})`, 'error');
         }
       } else if (cmd === this.CMD.VIDEO_STREAM) {
         if (msg.Data.Data && msg.Data.Data.VideoUrl) {
@@ -283,7 +283,7 @@ class CentauriClient extends EventEmitter {
           }
           this.videoUrl = url;
           this.emit('video_url', this.videoUrl);
-          this.log(`Câmara disponível em: ${this.videoUrl}`, 'info');
+          this.log(`Camera stream available at: ${this.videoUrl}`, 'info');
         }
       }
     }
@@ -292,22 +292,22 @@ class CentauriClient extends EventEmitter {
   getSnapshot() {
     // Human readable print status text
     const printStatusNames = {
-      0: 'Ocioso / Pronto',
-      1: 'Homing (Origem)',
-      2: 'Descendo',
-      3: 'A Imprimir',
-      4: 'Subindo',
-      5: 'A Pausar...',
-      6: 'Pausado',
-      7: 'A Parar...',
-      8: 'Parado',
-      9: 'Concluído',
-      10: 'A Verificar Ficheiro'
+      0: 'Idle / Ready',
+      1: 'Homing',
+      2: 'Dropping',
+      3: 'Printing',
+      4: 'Lifting',
+      5: 'Pausing...',
+      6: 'Paused',
+      7: 'Stopping...',
+      8: 'Stopped',
+      9: 'Complete',
+      10: 'Verifying File'
     };
 
     const printInfo = this.status?.PrintInfo || {};
     const printStatus = printInfo.Status ?? 0;
-    const printStatusText = printStatusNames[printStatus] || `Estado ${printStatus}`;
+    const printStatusText = printStatusNames[printStatus] || `Status ${printStatus}`;
     const isPrinting = printStatus === 3 || (this.status?.CurrentStatus?.includes(1) ?? false);
     const isPaused = printStatus === 6;
 
@@ -317,7 +317,7 @@ class CentauriClient extends EventEmitter {
       host: this.host,
       mainboardID: this.mainboardID,
       machineName: this.attributes?.MachineName || 'Centauri Carbon',
-      firmwareVersion: this.attributes?.FirmwareVersion || 'Desconhecida',
+      firmwareVersion: this.attributes?.FirmwareVersion || 'Unknown',
       protocolVersion: this.attributes?.ProtocolVersion || 'V3.0.0',
       printStatus,
       printStatusText,

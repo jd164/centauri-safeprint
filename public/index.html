@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Centauri Carbon SafePrint | Temporizador Anti-Runout</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo-icon">🛡️</div>
+        <div>
+          <h1 class="logo-title">Centauri SafePrint</h1>
+          <p class="logo-subtitle">Proteção Anti-Runout de Filamento • Elegoo Centauri Carbon</p>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Printer connection badge -->
+        <div id="connection-badge" class="connection-badge disconnected">
+          <span class="pulse-dot"></span>
+          <span id="connection-status-text">A conectar...</span>
+        </div>
+
+        <!-- IP Settings Button -->
+        <button id="btn-edit-ip" class="btn-icon" title="Configurar IP da Impressora">
+          ⚙️ <span id="printer-ip-display">192.168.1.100</span>
+        </button>
+
+        <!-- Direct link to printer interface -->
+        <a id="btn-printer-web" href="http://192.168.1.100/network-device-manager/network/control" target="_blank" class="btn-secondary" title="Abrir interface web original da impressora">
+          Interface Oficial ↗
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Grid Content -->
+    <main class="dashboard-grid">
+      
+      <!-- Left Column: Timer & Smart Triggers -->
+      <section class="column-left">
+        
+        <!-- Main Timer Card -->
+        <div class="card timer-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">⏱️</span> Temporizador de Paragem / Pausa
+            </div>
+            <div id="timer-badge" class="status-pill idle">INATIVO</div>
+          </div>
+
+          <!-- Digital Clock Display -->
+          <div class="timer-display-container">
+            <div id="timer-countdown" class="timer-clock">00:00:00</div>
+            <div class="timer-progress-bar-bg">
+              <div id="timer-progress-bar" class="timer-progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div id="timer-subtext" class="timer-subtext">Defina o tempo para proteger a sua impressão</div>
+          </div>
+
+          <!-- Action when timer expires -->
+          <div class="timer-config-group">
+            <label class="section-label">Ação ao Terminar o Tempo:</label>
+            <div class="action-toggle-group">
+              <label class="action-toggle-option active" id="option-pause">
+                <input type="radio" name="timer-action" value="pause" checked>
+                <div class="option-content">
+                  <div class="option-title">⏸️ Pausar Impressão (Recomendado)</div>
+                  <div class="option-desc">Suspende a impressão mantendo o bocal e cama aquecidos para poder inserir novo filamento!</div>
+                </div>
+              </label>
+
+              <label class="action-toggle-option" id="option-stop">
+                <input type="radio" name="timer-action" value="stop">
+                <div class="option-content">
+                  <div class="option-title">⏹️ Parar / Cancelar Impressão</div>
+                  <div class="option-desc">Cancela e desliga os aquecimentos imediatamente.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="timer-config-group" id="presets-container">
+            <label class="section-label">Durações Rápidas (Presets):</label>
+            <div class="presets-row">
+              <button class="btn-preset" data-mins="5">5m</button>
+              <button class="btn-preset" data-mins="15">15m</button>
+              <button class="btn-preset" data-mins="30">30m</button>
+              <button class="btn-preset active" data-mins="45">45m</button>
+              <button class="btn-preset" data-mins="60">1h</button>
+              <button class="btn-preset" data-mins="90">1h 30m</button>
+              <button class="btn-preset" data-mins="120">2h</button>
+              <button class="btn-preset" data-mins="180">3h</button>
+            </div>
+          </div>
+
+          <!-- Custom Time Input -->
+          <div class="timer-config-group" id="custom-inputs-container">
+            <label class="section-label">Tempo Personalizado:</label>
+            <div class="custom-time-inputs">
+              <div class="time-input-box">
+                <input type="number" id="input-hours" min="0" max="99" value="0">
+                <span>Horas</span>
+              </div>
+              <span class="time-sep">:</span>
+              <div class="time-input-box">
+                <input type="number" id="input-minutes" min="0" max="59" value="45">
+                <span>Minutos</span>
+              </div>
+              <span class="time-sep">:</span>
+              <div class="time-input-box">
+                <input type="number" id="input-seconds" min="0" max="59" value="0">
+                <span>Segundos</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Adjustments (Visible when timer is active) -->
+          <div id="adjust-container" class="timer-config-group hidden">
+            <label class="section-label">Ajustar Tempo em Execução:</label>
+            <div class="adjust-buttons-row">
+              <button class="btn-adjust" data-adjust="60">+1 min</button>
+              <button class="btn-adjust" data-adjust="300">+5 min</button>
+              <button class="btn-adjust" data-adjust="600">+10 min</button>
+              <button class="btn-adjust" data-adjust="1800">+30 min</button>
+              <button class="btn-adjust danger" data-adjust="-300">-5 min</button>
+            </div>
+          </div>
+
+          <!-- Timer Action Buttons -->
+          <div class="timer-actions-row">
+            <button id="btn-timer-start" class="btn-primary-large">
+              ▶ INICIAR TEMPORIZADOR
+            </button>
+            <button id="btn-timer-pause" class="btn-secondary-large hidden">
+              ⏸ Pausar Timer
+            </button>
+            <button id="btn-timer-cancel" class="btn-danger-large hidden">
+              ✕ Cancelar
+            </button>
+          </div>
+
+          <!-- Audio and Notification Toggles -->
+          <div class="alerts-bar">
+            <label class="checkbox-label">
+              <input type="checkbox" id="chk-audio" checked>
+              <span>🔔 Alarme Sonoro (Aviso aos 60s e no final)</span>
+            </label>
+            <button id="btn-test-sound" class="btn-text">Testar Som 🔊</button>
+            <label class="checkbox-label">
+              <input type="checkbox" id="chk-notif" checked>
+              <span>🖥️ Notificação no Ecrã</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Smart Alternative Triggers Card -->
+        <div class="card smart-triggers-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">🎯</span> Gatilhos Inteligentes (Camada ou %)
+            </div>
+            <span class="badge-optional">Opcional</span>
+          </div>
+          <p class="card-desc">Em alternativa ou em conjunto com o temporizador, pare automaticamente ao atingir determinado ponto do ficheiro:</p>
+
+          <div class="smart-inputs-grid">
+            <div class="smart-input-col">
+              <label for="input-target-layer">Parar ao chegar à Camada #:</label>
+              <div class="input-with-addon">
+                <input type="number" id="input-target-layer" min="1" placeholder="Ex: 150">
+                <span class="addon">Camada</span>
+              </div>
+              <small class="helper-text">Baseado na altura onde o filamento atual terminará.</small>
+            </div>
+
+            <div class="smart-input-col">
+              <label for="input-target-progress">Parar ao atingir Percentagem %:</label>
+              <div class="input-with-addon">
+                <input type="number" id="input-target-progress" min="1" max="99" placeholder="Ex: 85">
+                <span class="addon">%</span>
+              </div>
+              <small class="helper-text">Baseado na estimativa do slicer.</small>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Live Telemetry, Manual Controls & Camera -->
+      <section class="column-right">
+
+        <!-- Direct Immediate Controls Card -->
+        <div class="card direct-controls-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">🎮</span> Controlo Imediato da Impressora
+            </div>
+          </div>
+          <div class="direct-buttons-grid">
+            <button id="btn-manual-pause" class="btn-control pause-btn" title="Pausar impressão imediatamente (Cmd 129)">
+              <span class="btn-icon-large">⏸️</span>
+              <div>
+                <strong>Pausar Agora</strong>
+                <small>Suspender impressão</small>
+              </div>
+            </button>
+
+            <button id="btn-manual-resume" class="btn-control resume-btn" title="Retomar impressão pausada (Cmd 131)">
+              <span class="btn-icon-large">▶️</span>
+              <div>
+                <strong>Retomar Agora</strong>
+                <small>Continuar impressão</small>
+              </div>
+            </button>
+
+            <button id="btn-manual-stop" class="btn-control stop-btn" title="Parar e cancelar impressão definitivamente (Cmd 130)">
+              <span class="btn-icon-large">⏹️</span>
+              <div>
+                <strong>Parar Impressão</strong>
+                <small>Cancelar definitivo</small>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Telemetry Card -->
+        <div class="card telemetry-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">📊</span> Telemetria da Centauri Carbon
+            </div>
+            <div id="printer-status-pill" class="status-pill idle">Ocioso</div>
+          </div>
+
+          <!-- Print Job Info -->
+          <div class="telemetry-job-info">
+            <div class="job-detail-row">
+              <span class="label">Ficheiro:</span>
+              <span id="telemetry-filename" class="value highlight">-</span>
+            </div>
+            
+            <div class="progress-section">
+              <div class="progress-labels">
+                <span>Progresso da Peça</span>
+                <span id="telemetry-progress-val">0%</span>
+              </div>
+              <div class="print-progress-bg">
+                <div id="telemetry-progress-bar" class="print-progress-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <div class="telemetry-metrics-grid">
+              <div class="metric-box">
+                <div class="metric-label">Camada</div>
+                <div id="telemetry-layer" class="metric-value">0 / 0</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Tempo Decorrido</div>
+                <div id="telemetry-elapsed" class="metric-value">0m</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Tempo Restante</div>
+                <div id="telemetry-remaining" class="metric-value">0m</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Velocidade</div>
+                <div id="telemetry-speed" class="metric-value">100%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Temperatures Section -->
+          <div class="temperatures-section">
+            <div class="temp-item">
+              <div class="temp-header">
+                <span>🔥 Bocal (Nozzle)</span>
+                <span id="temp-nozzle" class="temp-val">25.0°C / 0°C</span>
+              </div>
+              <div class="temp-bar-bg">
+                <div id="bar-nozzle" class="temp-bar-fill nozzle" style="width: 10%;"></div>
+              </div>
+            </div>
+
+            <div class="temp-item">
+              <div class="temp-header">
+                <span>♨️ Cama Aquecida (Bed)</span>
+                <span id="temp-bed" class="temp-val">25.0°C / 0°C</span>
+              </div>
+              <div class="temp-bar-bg">
+                <div id="bar-bed" class="temp-bar-fill bed" style="width: 10%;"></div>
+              </div>
+            </div>
+
+            <div class="temp-item">
+              <div class="temp-header">
+                <span>📦 Câmara (Chamber)</span>
+                <span id="temp-box" class="temp-val">25.0°C</span>
+              </div>
+              <div class="temp-bar-bg">
+                <div id="bar-box" class="temp-bar-fill box" style="width: 10%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Camera Stream Card -->
+        <div class="card camera-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">📷</span> Câmara em Direto
+            </div>
+            <button id="btn-toggle-camera" class="btn-camera-toggle">Ativar Câmara</button>
+          </div>
+          <div class="camera-viewport">
+            <img id="camera-stream" src="" alt="Câmara Centauri Carbon" class="camera-img hidden">
+            <div id="camera-placeholder" class="camera-placeholder">
+              <span class="cam-icon">📹</span>
+              <p>Câmara desativada para poupar largura de banda.</p>
+              <button id="btn-start-camera-stream" class="btn-secondary">Ligar Transmissão em Direto</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Activity Log Card -->
+        <div class="card logs-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon">📜</span> Registo de Eventos
+            </div>
+            <button id="btn-clear-logs" class="btn-text">Limpar</button>
+          </div>
+          <div id="logs-list" class="logs-container">
+            <!-- Log entries will be added dynamically -->
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- IP Configuration Modal -->
+    <div id="modal-ip" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Configurar Endereço IP da Impressora</h3>
+          <button id="modal-close" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Indique o endereço IP da sua Elegoo Centauri Carbon na sua rede local:</p>
+          <div class="input-field">
+            <label for="input-printer-ip">IP da Impressora:</label>
+            <input type="text" id="input-printer-ip" value="192.168.1.100" placeholder="Ex: 192.168.1.100">
+          </div>
+          <small>A porta SDCP padrão é 3030 e o web manager corre na porta 80.</small>
+        </div>
+        <div class="modal-footer">
+          <button id="modal-btn-cancel" class="btn-secondary">Cancelar</button>
+          <button id="modal-btn-save" class="btn-primary">Guardar & Reconectar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stop Confirmation Modal -->
+    <div id="modal-confirm-stop" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header danger-header">
+          <h3>⚠️ Confirmar Paragem da Impressão</h3>
+        </div>
+        <div class="modal-body">
+          <p><strong>Tem a certeza que deseja PARAR e CANCELAR a impressão atual?</strong></p>
+          <p class="text-danger">Esta ação é irreversível e terminará a peça.</p>
+          <p>Se pretende apenas substituir o filamento ou inspecionar, escolha <strong>PAUSAR</strong> em vez de parar!</p>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-stop-cancel" class="btn-secondary">Voltar Atrás</button>
+          <button id="btn-confirm-stop-execute" class="btn-danger-large">Sim, Parar Definitivamente</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

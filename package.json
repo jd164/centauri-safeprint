@@ -1,0 +1,29 @@
+{
+  "name": "centauri-safeprint",
+  "version": "1.0.0",
+  "description": "Smart countdown timer and filament runout protection for Elegoo Centauri Carbon 3D printers via SDCP v3.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "elegoo",
+    "centauri-carbon",
+    "sdcp",
+    "3d-printing",
+    "filament-runout",
+    "timer",
+    "safety",
+    "guard"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "jd164",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jd164/centauri-safeprint.git"
+  }
+}
